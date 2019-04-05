@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!-- saved from url=(0030)https://gatt-sample.endian.se/ -->
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Bluetooth</title>
+</head>
+
+<body>
+    <table>
+        <tbody><tr>
+            <th>Led</th>
+            <th>Value</th>
+        </tr>
+        <tr>
+            <td><input type="text" placeholder="0 to 3" id="writeLedfield"></td>
+            <td><input type="text" placeholder="0 or 1" id="writeValuefield"></td>
+            <td><button type="button" onclick="writeGatt();return false;">Write</button></td>
+        </tr>
+    </tbody></table>
+
+    <br>
+
+    <button type="button" onclick="readGatt();return false;">Read</button>
+    <t><span id="readTimeField">?</span> ticks since last boot, ADC value is <span id="readAdcField">?</span></t>
+
+    <script type="text/javascript">
+        async function readGatt() {
+            let serviceUuid = "ad7d3e00-e8e3-2083-094f-431901433ad2";
+
+            try {
+                console.log('Requesting Bluetooth Device...');
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [serviceUuid] }]
+                });
+
+                console.log('Connecting to GATT Server...');
+                const server = await device.gatt.connect();
+
+                console.log('Getting Service...');
+                const service = await server.getPrimaryService(serviceUuid);
+
+                console.log('Getting Read Characteristic...');
+                let readCharacteristic = await service.getCharacteristic('ad7d3e01-e8e3-2083-094f-431901433ad2');
+
+                console.log('Reading From Characteristic...');
+                let data = await readCharacteristic.readValue();
+
+                var adc = data.getInt16(0, true);
+                var time = data.getUint32(2, true);
+                document.querySelector('#readAdcField').innerHTML = adc;
+                document.querySelector('#readTimeField').innerHTML = time;
+
+                console.log('Disconnecting from GATT Server...');
+                await device.gatt.disconnect();
+
+            } catch (error) {
+                console.log('Argh! ' + error);
+            }
+        }
+
+        async function writeGatt() {
+            let serviceUuid = "ad7d3e00-e8e3-2083-094f-431901433ad2";
+            let led = document.querySelector('#writeLedfield').value;
+            let value = document.querySelector('#writeValuefield').value;
+            var buffer = new ArrayBuffer(2);
+            var view = new DataView(buffer);
+            view.setUint8(0, parseInt(led));
+            view.setUint8(1, parseInt(value));
+
+            try {
+                console.log('Requesting Bluetooth Device...');
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [{ services: [serviceUuid] }]
+                });
+
+                console.log('Connecting to GATT Server...');
+                const server = await device.gatt.connect();
+
+                console.log('Getting Service...');
+                const service = await server.getPrimaryService(serviceUuid);
+
+                console.log('Getting Write Characteristic...');
+                let writeCharacteristic = await service.getCharacteristic('ad7d3e02-e8e3-2083-094f-431901433ad2');
+
+                console.log('Writing To Characteristic...');
+                await writeCharacteristic.writeValue(view);
+
+                console.log('Disconnecting from GATT Server...');
+                await device.gatt.disconnect();
+
+            } catch (error) {
+                console.log('Argh! ' + error);
+            }
+        }
+    </script>
+
+
+</body><div></div></html>
